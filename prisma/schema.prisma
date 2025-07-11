@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+  posts Post[]
+}
+
+model Post {
+  id        Int     @id @default(autoincrement())
+  title     String
+  content   String?
+  published Boolean @default(false)
+  authorId  Int
+  author    User    @relation(fields: [authorId], references: [id])
+}
+
+// IT INVENTORY
+
+enum Direction {
+  IN
+  OUT
+}
+
+enum DocumentCategory {
+  BC_1_6
+  BC_2_7
+  BC_3_3
+  BC_4_0
+  P3BET
+}
+
+model DocumentProductItem {
+  id          Int       @id @default(autoincrement())
+  documentId  Int
+  productId   Int
+  qty         Decimal
+  unit        String
+  packageQty  Decimal?  @map("package_qty")
+  packageUnit String?   @map("package_unit")
+  createdAt   DateTime? @default(now()) @map("created_at")
+
+  document   Document        @relation(fields: [documentId], references: [id])
+  product    Product         @relation(fields: [productId], references: [id])
+  inOutLinks InOutDocument[] @relation("ProductItemLink")
+
+  @@map("document_product_items")
+}
+
+model Document {
+  id                 Int              @id @default(autoincrement())
+  documentNumber     String           @map("document_number")
+  registrationNumber String?          @map("registration_number")
+  date               DateTime
+  direction          Direction // Replace with enum if you have one
+  ddocumentCategory  DocumentCategory @map("document_category") // Replace with enum if you have one
+  companyName        String?          @map("company_name")
+  price              Decimal?
+  createdAt          DateTime?        @default(now()) @map("created_at")
+  updatedAt          DateTime?        @default(now()) @map("updated_at")
+
+  productItems DocumentProductItem[]
+  inDocuments  InOutDocument[]       @relation("InDocument")
+  outDocuments InOutDocument[]       @relation("OutDocument")
+
+  @@map("documents")
+}
+
+model InOutDocument {
+  id                    Int       @id @default(autoincrement())
+  inDocumentId          Int       @map("in_document_id")
+  outDocumentId         Int       @map("out_document_id")
+  productId             Int
+  productsPerDocumentId Int       @map("products_per_documents_id")
+  qtyUsed               Decimal   @map("qty_used")
+  packageQtyUsed        Decimal?  @map("package_qty_used")
+  createdAt             DateTime? @default(now()) @map("created_at")
+
+  inDocument  Document            @relation("InDocument", fields: [inDocumentId], references: [id])
+  outDocument Document            @relation("OutDocument", fields: [outDocumentId], references: [id])
+  product     Product             @relation(fields: [productId], references: [id])
+  productItem DocumentProductItem @relation("ProductItemLink", fields: [productsPerDocumentId], references: [id])
+
+  @@map("in_out_documents")
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  productName String    @map("product_name")
+  productCode String    @unique @map("product_code")
+  qty         Decimal   @default(0)
+  unit        String
+  packageQty  Decimal   @default(0) @map("package_qty")
+  packageUnit String?   @map("package_unit")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  updatedAt   DateTime? @default(now()) @map("updated_at")
+
+  productItems DocumentProductItem[]
+  inOutLinks   InOutDocument[]
+
+  @@map("products")
+}

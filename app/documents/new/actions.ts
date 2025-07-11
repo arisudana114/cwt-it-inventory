@@ -2,7 +2,6 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 
 // Define validation schemas using Zod
@@ -273,9 +272,11 @@ async function createOutDocument(formData: FormData) {
               productId: product.id,
               productsPerDocumentId: sourceItem.id,
               qtyUsed: Number(source.qtyUsed),
+              packageQtyUsed: source.packageQtyUsed
+                ? Number(source.packageQtyUsed)
+                : undefined,
               // packageQtyUsed field is not in the database schema yet
               // Uncomment after running the migration:
-              // packageQtyUsed: source.packageQtyUsed ? Number(source.packageQtyUsed) : undefined,
             },
           });
 

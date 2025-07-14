@@ -36,12 +36,13 @@ const productItemSchema = z.object({
   packageUnit: z.string().optional(),
 });
 
-
-
-
-
 // This function will be called from the form to create the document
-export async function createDocument(prevState: unknown, formData: FormData | { message: string, errors: Partial<Record<string, string[]>> }) {
+export async function createDocument(
+  prevState: unknown,
+  formData:
+    | FormData
+    | { message: string; errors: Partial<Record<string, string[]>> }
+) {
   // If formData is not a FormData instance, it's a validation error from client-side
   if (
     formData &&
@@ -118,7 +119,9 @@ async function createInDocument(formData: FormData) {
           (formData.get("registrationNumber") as string) || null,
         date: new Date(formData.get("date") as string),
         direction: "IN",
-        ddocumentCategory: formData.get("ddocumentCategory") as DocumentCategory,
+        ddocumentCategory: formData.get(
+          "ddocumentCategory"
+        ) as DocumentCategory,
         companyName: (formData.get("companyName") as string) || null,
         price: Number(formData.get("price") as string) || 0,
       },
@@ -190,7 +193,9 @@ async function createOutDocument(formData: FormData) {
             (formData.get("registrationNumber") as string) || null,
           date: new Date(formData.get("date") as string),
           direction: "OUT",
-          ddocumentCategory: formData.get("ddocumentCategory") as DocumentCategory,
+          ddocumentCategory: formData.get(
+            "ddocumentCategory"
+          ) as DocumentCategory,
           companyName: (formData.get("companyName") as string) || null,
           price: Number(formData.get("price") as string) || 0,
         },
@@ -360,7 +365,9 @@ function parseProductItemsFromFormData(formData: FormData) {
     const index = parseInt(indexStr);
     const entries = entriesByIndex[index];
 
-    const item: { [key: string]: FormDataEntryValue | null | number } = { index };
+    const item: { [key: string]: FormDataEntryValue | null | number } = {
+      index,
+    };
 
     entries.forEach((entry) => {
       item[entry.key] = entry.value;
@@ -501,7 +508,9 @@ export async function getInSourcesForProduct(productCode: string) {
     if (typeof obj === "object") {
       const result: { [key: string]: unknown } = {};
       for (const key in obj) {
-        result[key] = convertDecimalToNumber((obj as { [key: string]: unknown })[key]);
+        result[key] = convertDecimalToNumber(
+          (obj as { [key: string]: unknown })[key]
+        );
       }
       return result;
     }

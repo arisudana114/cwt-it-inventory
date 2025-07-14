@@ -16,8 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { PlusCircleIcon, Trash2 } from "lucide-react";
 
-
-
 type FormState = {
   message: string;
   errors: Partial<Record<string, string[]>>;
@@ -27,10 +25,13 @@ type FormState = {
 
 export default function NewDocumentPage() {
   const router = useRouter();
-  const [state, formAction] = useActionState<FormState, FormData | FormState>(createDocument, {
-    message: "",
-    errors: {},
-  } as FormState);
+  const [state, formAction] = useActionState<FormState, FormData | FormState>(
+    createDocument,
+    {
+      message: "",
+      errors: {},
+    } as FormState
+  );
 
   // Handle redirect if server action returns success with redirectTo
   useEffect(() => {
@@ -40,21 +41,25 @@ export default function NewDocumentPage() {
   }, [state, router]);
   const [direction, setDirection] = useState<"IN" | "OUT">("IN");
   const [category, setCategory] = useState("");
-  const [productItems, setProductItems] = useState<{
-    productName: string;
-    productCode: string;
-    qty: string;
-    unit: string;
-    packageQty: string;
-    packageUnit: string;
-  }[]>([{
-    productName: "",
-    productCode: "",
-    qty: "",
-    unit: "",
-    packageQty: "",
-    packageUnit: "",
-  }]);
+  const [productItems, setProductItems] = useState<
+    {
+      productName: string;
+      productCode: string;
+      qty: string;
+      unit: string;
+      packageQty: string;
+      packageUnit: string;
+    }[]
+  >([
+    {
+      productName: "",
+      productCode: "",
+      qty: "",
+      unit: "",
+      packageQty: "",
+      packageUnit: "",
+    },
+  ]);
   const [availableSources, setAvailableSources] = useState<InSource[]>([]);
   const [sourceQuantities, setSourceQuantities] = useState<
     Record<string, Record<string, { qtyUsed: string; packageQtyUsed: string }>>
@@ -80,7 +85,7 @@ export default function NewDocumentPage() {
 
   const handleProductChange = (index: number, field: string, value: string) => {
     const newItems = [...productItems];
-    newItems[index][field as keyof typeof newItems[0]] = value;
+    newItems[index][field as keyof (typeof newItems)[0]] = value;
     setProductItems(newItems);
 
     if (direction === "OUT" && field === "productCode") {
@@ -449,7 +454,6 @@ export default function NewDocumentPage() {
                   <h4 className="font-semibold">Select IN Sources:</h4>
                   {availableSources.length > 0 ? (
                     availableSources.map((source) => {
-                      console.log(source.packageBalance);
                       return (
                         <div
                           key={source.id}

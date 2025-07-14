@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
+import { useFormStatus } from "react-dom";
 import { createDocument, getInSourcesForProduct, InSource } from "./actions";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -32,6 +33,8 @@ export default function NewDocumentPage() {
       errors: {},
     } as FormState
   );
+
+  const { pending } = useFormStatus();
 
   // Handle redirect if server action returns success with redirectTo
   useEffect(() => {
@@ -548,8 +551,8 @@ export default function NewDocumentPage() {
         </div>
 
         <div className="mt-6">
-          <Button type="submit" className="cursor-pointer">
-            Create Document
+          <Button type="submit" className="cursor-pointer" disabled={pending}>
+            {pending ? "Creating..." : "Create Document"}
           </Button>
         </div>
 

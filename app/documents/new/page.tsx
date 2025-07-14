@@ -1,36 +1,36 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
-import { createDocument, getInSourcesForProduct } from "./actions";
+import { createDocument, getInSourcesForProduct, InSource } from "./actions";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { PlusCircleIcon, Trash2 } from "lucide-react";
 
-// Define the InSource type explicitly based on the return type of getInSourcesForProduct
-type InSource = {
-  id: number;
-  documentId: number;
-  productId: number;
-  qty: any; // Using 'any' to handle Decimal type
-  unit: string;
-  packageQty?: any | null; // Using 'any' to handle Decimal type
-  packageUnit?: string | null;
-  balance: number;
-  document: {
-    documentNumber: string;
-    // Add other fields that might be used
-    id: number;
-    date: Date;
-    direction: string;
-  };
-  inOutLinks: any[];
+
+
+type FormState = {
+  message: string;
+  errors: Partial<Record<string, string[]>>;
+  success?: boolean;
+  redirectTo?: string;
 };
 
 export default function NewDocumentPage() {
   const router = useRouter();
-  const [state, formAction] = useActionState(createDocument, {
+  const [state, formAction] = useActionState<FormState, FormData | FormState>(createDocument, {
     message: "",
     errors: {},
-  });
+  } as FormState);
 
   // Handle redirect if server action returns success with redirectTo
   useEffect(() => {
@@ -39,16 +39,22 @@ export default function NewDocumentPage() {
     }
   }, [state, router]);
   const [direction, setDirection] = useState<"IN" | "OUT">("IN");
-  const [productItems, setProductItems] = useState<any[]>([
-    {
-      productName: "",
-      productCode: "",
-      qty: "",
-      unit: "",
-      packageQty: "",
-      packageUnit: "",
-    },
-  ]);
+  const [category, setCategory] = useState("");
+  const [productItems, setProductItems] = useState<{
+    productName: string;
+    productCode: string;
+    qty: string;
+    unit: string;
+    packageQty: string;
+    packageUnit: string;
+  }[]>([{
+    productName: "",
+    productCode: "",
+    qty: "",
+    unit: "",
+    packageQty: "",
+    packageUnit: "",
+  }]);
   const [availableSources, setAvailableSources] = useState<InSource[]>([]);
   const [sourceQuantities, setSourceQuantities] = useState<
     Record<string, Record<string, { qtyUsed: string; packageQtyUsed: string }>>
@@ -72,9 +78,9 @@ export default function NewDocumentPage() {
     setProductItems(productItems.filter((_, i) => i !== index));
   };
 
-  const handleProductChange = (index: number, field: string, value: any) => {
+  const handleProductChange = (index: number, field: string, value: string) => {
     const newItems = [...productItems];
-    newItems[index][field] = value;
+    newItems[index][field as keyof typeof newItems[0]] = value;
     setProductItems(newItems);
 
     if (direction === "OUT" && field === "productCode") {
@@ -194,7 +200,6 @@ export default function NewDocumentPage() {
         message: "Validation failed",
         errors,
       };
-      // @ts-ignore - We're intentionally passing a non-FormData object
       startTransition(() => {
         formAction(validationResult);
       });
@@ -233,119 +238,76 @@ export default function NewDocumentPage() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="max-w-3xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Create New Document</h1>
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Document Fields */}
-          <div>
-            <label
-              htmlFor="documentNumber"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Document Number
-            </label>
-            <input
-              type="text"
-              name="documentNumber"
-              id="documentNumber"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              required
-            />
+          <div className="md:col-span-2 grid gap-2">
+            <Label htmlFor="documentNumber">Document Number</Label>
+            <Input id="documentNumber" name="documentNumber" required />
           </div>
-          <div>
-            <label
-              htmlFor="registrationNumber"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Registration Number
-            </label>
-            <input
-              type="text"
-              name="registrationNumber"
-              id="registrationNumber"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+
+          <div className="md:col-span-2 grid gap-2">
+            <Label htmlFor="registrationNumber">Registration Number</Label>
+            <Input id="registrationNumber" name="registrationNumber" />
           </div>
-          <div>
-            <label
-              htmlFor="date"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Date
-            </label>
-            <input
-              type="date"
-              name="date"
-              id="date"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              required
-            />
+
+          <div className="md:col-span-2 grid gap-2">
+            <Label htmlFor="date">Date</Label>
+            <Input id="date" name="date" type="date" required />
           </div>
+
+          {/* Direction (half width) */}
           <div>
-            <label
-              htmlFor="direction"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <Label htmlFor="direction" className="mb-2">
               Direction
-            </label>
-            <select
-              name="direction"
-              id="direction"
+            </Label>
+            <Select
               value={direction}
-              onChange={(e) => setDirection(e.target.value as "IN" | "OUT")}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              onValueChange={(val) => setDirection(val as "IN" | "OUT")}
             >
-              <option value="IN">IN</option>
-              <option value="OUT">OUT</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select Direction" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="IN">IN</SelectItem>
+                <SelectItem value="OUT">OUT</SelectItem>
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="direction" value={direction} />
           </div>
+
+          {/* Category (half width) */}
           <div>
-            <label
-              htmlFor="ddocumentCategory"
-              className="block text-sm font-medium text-gray-700"
-            >
+            <Label htmlFor="ddocumentCategory" className="mb-2">
               Document Category
-            </label>
-            <select
-              name="ddocumentCategory"
-              id="ddocumentCategory"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            </Label>
+            <Select
+              onValueChange={(value) => setCategory(value)}
+              value={category}
             >
-              <option value="BC_1_6">BC 1.6</option>
-              <option value="BC_2_7">BC 2.7</option>
-              <option value="BC_3_3">BC 3.3</option>
-              <option value="BC_4_0">BC 4.0</option>
-              <option value="P3BET">P3BET</option>
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BC_1_6">BC 1.6</SelectItem>
+                <SelectItem value="BC_2_7">BC 2.7</SelectItem>
+                <SelectItem value="BC_3_3">BC 3.3</SelectItem>
+                <SelectItem value="BC_4_0">BC 4.0</SelectItem>
+                <SelectItem value="P3BET">P3BET</SelectItem>
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="ddocumentCategory" value={category} />
           </div>
-          <div>
-            <label
-              htmlFor="companyName"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Company Name
-            </label>
-            <input
-              type="text"
-              name="companyName"
-              id="companyName"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+
+          <div className="md:col-span-2 grid gap-2">
+            <Label htmlFor="companyName">Company Name</Label>
+            <Input id="companyName" name="companyName" />
           </div>
-          <div>
-            <label
-              htmlFor="price"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Price
-            </label>
-            <input
-              type="number"
-              name="price"
-              id="price"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+
+          <div className="md:col-span-2 grid gap-2">
+            <Label htmlFor="price">Price</Label>
+            <Input id="price" name="price" type="number" />
           </div>
         </div>
 
@@ -353,129 +315,132 @@ export default function NewDocumentPage() {
         <div className="mt-6">
           <h2 className="text-xl font-bold mb-2">Products</h2>
           {productItems.map((item, index) => (
-            <div
-              key={index}
-              className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 p-4 border rounded-md"
-            >
-              <div className="col-span-2">
-                <label
-                  htmlFor={`productItems.${index}.productName`}
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Product Name
-                </label>
-                <input
-                  type="text"
-                  name={`productItems.${index}.productName`}
-                  id={`productItems.${index}.productName`}
-                  value={item.productName || ""}
-                  onChange={(e) =>
-                    handleProductChange(index, "productName", e.target.value)
-                  }
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  required
-                />
+            <div key={index} className="mb-4 p-4 border rounded-md space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label
+                    htmlFor={`productItems.${index}.productName`}
+                    className="text-sm font-medium"
+                  >
+                    Product Name
+                  </Label>
+                  <Input
+                    type="text"
+                    name={`productItems.${index}.productName`}
+                    id={`productItems.${index}.productName`}
+                    value={item.productName || ""}
+                    onChange={(e) =>
+                      handleProductChange(index, "productName", e.target.value)
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor={`productItems.${index}.productCode`}
+                    className="text-sm font-medium"
+                  >
+                    Product Code
+                  </Label>
+                  <Input
+                    type="text"
+                    name={`productItems.${index}.productCode`}
+                    id={`productItems.${index}.productCode`}
+                    value={item.productCode || ""}
+                    onChange={(e) =>
+                      handleProductChange(index, "productCode", e.target.value)
+                    }
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <label
-                  htmlFor={`productItems.${index}.productCode`}
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Product Code
-                </label>
-                <input
-                  type="text"
-                  name={`productItems.${index}.productCode`}
-                  id={`productItems.${index}.productCode`}
-                  value={item.productCode || ""}
-                  onChange={(e) =>
-                    handleProductChange(index, "productCode", e.target.value)
-                  }
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  required
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label
+                    htmlFor={`productItems.${index}.qty`}
+                    className="block text-sm font-medium"
+                  >
+                    Quantity
+                  </Label>
+                  <Input
+                    type="number"
+                    name={`productItems.${index}.qty`}
+                    id={`productItems.${index}.qty`}
+                    value={item.qty || ""}
+                    onChange={(e) =>
+                      handleProductChange(index, "qty", e.target.value)
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor={`productItems.${index}.unit`}
+                    className="block text-sm font-medium"
+                  >
+                    Unit
+                  </Label>
+                  <Input
+                    type="text"
+                    name={`productItems.${index}.unit`}
+                    id={`productItems.${index}.unit`}
+                    value={item.unit || ""}
+                    onChange={(e) =>
+                      handleProductChange(index, "unit", e.target.value)
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor={`productItems.${index}.packageQty`}
+                    className="block text-sm font-medium"
+                  >
+                    Package Qty
+                  </Label>
+                  <Input
+                    type="number"
+                    name={`productItems.${index}.packageQty`}
+                    id={`productItems.${index}.packageQty`}
+                    value={item.packageQty || ""}
+                    onChange={(e) =>
+                      handleProductChange(index, "packageQty", e.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <Label
+                    htmlFor={`productItems.${index}.packageUnit`}
+                    className="block text-sm font-medium"
+                  >
+                    Package Unit
+                  </Label>
+                  <Input
+                    type="text"
+                    name={`productItems.${index}.packageUnit`}
+                    id={`productItems.${index}.packageUnit`}
+                    value={item.packageUnit || ""}
+                    onChange={(e) =>
+                      handleProductChange(index, "packageUnit", e.target.value)
+                    }
+                  />
+                </div>
               </div>
-              <div>
-                <label
-                  htmlFor={`productItems.${index}.qty`}
-                  className="block text-sm font-medium text-gray-700"
+              <div className="flex justify-start gap-4">
+                <button
+                  type="button"
+                  onClick={handleAddProduct}
+                  className="cursor-pointer"
                 >
-                  Quantity
-                </label>
-                <input
-                  type="number"
-                  name={`productItems.${index}.qty`}
-                  id={`productItems.${index}.qty`}
-                  value={item.qty || ""}
-                  onChange={(e) =>
-                    handleProductChange(index, "qty", e.target.value)
-                  }
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor={`productItems.${index}.unit`}
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Unit
-                </label>
-                <input
-                  type="text"
-                  name={`productItems.${index}.unit`}
-                  id={`productItems.${index}.unit`}
-                  value={item.unit || ""}
-                  onChange={(e) =>
-                    handleProductChange(index, "unit", e.target.value)
-                  }
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor={`productItems.${index}.packageQty`}
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Package Qty
-                </label>
-                <input
-                  type="number"
-                  name={`productItems.${index}.packageQty`}
-                  id={`productItems.${index}.packageQty`}
-                  value={item.packageQty || ""}
-                  onChange={(e) =>
-                    handleProductChange(index, "packageQty", e.target.value)
-                  }
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor={`productItems.${index}.packageUnit`}
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Package Unit
-                </label>
-                <input
-                  type="text"
-                  name={`productItems.${index}.packageUnit`}
-                  id={`productItems.${index}.packageUnit`}
-                  value={item.packageUnit || ""}
-                  onChange={(e) =>
-                    handleProductChange(index, "packageUnit", e.target.value)
-                  }
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-              </div>
-              <div className="col-span-6">
+                  <PlusCircleIcon />
+                </button>
                 <button
                   type="button"
                   onClick={() => handleRemoveProduct(index)}
-                  className="text-red-500"
+                  className="text-red-500 hover:text-red-700 cursor-pointer"
                 >
-                  Remove
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
 
@@ -483,76 +448,82 @@ export default function NewDocumentPage() {
                 <div className="col-span-6 mt-2">
                   <h4 className="font-semibold">Select IN Sources:</h4>
                   {availableSources.length > 0 ? (
-                    availableSources.map((source) => (
-                      <div
-                        key={source.id}
-                        className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 p-2 border rounded-md"
-                      >
-                        <div>
-                          <span className="block font-medium">
-                            {source.document.documentNumber} (Date:{" "}
-                            {new Date(
-                              source.document.date
-                            ).toLocaleDateString()}
-                            )
-                          </span>
-                          <span className="text-sm">
-                            Balance: {source.balance} {source.unit}
-                            {source.packageQty && source.packageUnit
-                              ? ` / ${source.packageQty} ${source.packageUnit}`
-                              : ""}
-                          </span>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Quantity to use ({source.unit})
-                          </label>
-                          <input
-                            type="number"
-                            name={`productItems.${index}.sources.${source.id}.qtyUsed`}
-                            placeholder={`Qty in ${source.unit}`}
-                            value={
-                              sourceQuantities[index]?.[source.id]?.qtyUsed ||
-                              ""
-                            }
-                            onChange={(e) =>
-                              handleSourceQuantityChange(
-                                index,
-                                source.id,
-                                "qtyUsed",
-                                e.target.value
-                              )
-                            }
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                          />
-                        </div>
-                        {source.packageQty && source.packageUnit && (
+                    availableSources.map((source) => {
+                      console.log(source.packageBalance);
+                      return (
+                        <div
+                          key={source.id}
+                          className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2 p-2 border rounded-md"
+                        >
                           <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                              Package Qty to use ({source.packageUnit})
-                            </label>
-                            <input
+                            <div>
+                              <span className="text-sm">
+                                {source.document.documentNumber} /{" "}
+                                {source.document.registrationNumber} (Date:{" "}
+                                {source.document.date
+                                  .toISOString()
+                                  .slice(0, 10)}
+                                )
+                              </span>
+                            </div>
+
+                            <span className="text-sm">
+                              Balance: {source.balance} {source.unit}
+                              {source.packageBalance !== undefined &&
+                              source.packageUnit
+                                ? ` / ${source.packageBalance} ${source.packageUnit}`
+                                : ""}
+                            </span>
+                          </div>
+                          <div>
+                            <Label className="block text-sm font-medium">
+                              Quantity to use ({source.unit})
+                            </Label>
+                            <Input
                               type="number"
-                              name={`productItems.${index}.sources.${source.id}.packageQtyUsed`}
-                              placeholder={`Pkg Qty in ${source.packageUnit}`}
+                              name={`productItems.${index}.sources.${source.id}.qtyUsed`}
+                              placeholder={`Qty in ${source.unit}`}
                               value={
-                                sourceQuantities[index]?.[source.id]
-                                  ?.packageQtyUsed || ""
+                                sourceQuantities[index]?.[source.id]?.qtyUsed ||
+                                ""
                               }
                               onChange={(e) =>
                                 handleSourceQuantityChange(
                                   index,
                                   source.id,
-                                  "packageQtyUsed",
+                                  "qtyUsed",
                                   e.target.value
                                 )
                               }
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                             />
                           </div>
-                        )}
-                      </div>
-                    ))
+                          {source.packageQty && source.packageUnit && (
+                            <div>
+                              <Label className="block text-sm font-medium">
+                                Package Qty to use ({source.packageUnit})
+                              </Label>
+                              <Input
+                                type="number"
+                                name={`productItems.${index}.sources.${source.id}.packageQtyUsed`}
+                                placeholder={`Pkg Qty in ${source.packageUnit}`}
+                                value={
+                                  sourceQuantities[index]?.[source.id]
+                                    ?.packageQtyUsed || ""
+                                }
+                                onChange={(e) =>
+                                  handleSourceQuantityChange(
+                                    index,
+                                    source.id,
+                                    "packageQtyUsed",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   ) : (
                     <p>No available sources for this product.</p>
                   )}
@@ -560,22 +531,22 @@ export default function NewDocumentPage() {
               )}
             </div>
           ))}
-          <button
-            type="button"
-            onClick={handleAddProduct}
-            className="mt-2 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Add Product
+        </div>
+
+        <div
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={handleAddProduct}
+        >
+          <button type="button" className="cursor-pointer">
+            <PlusCircleIcon />
           </button>
+          <span className="text-xs">Add Product</span>
         </div>
 
         <div className="mt-6">
-          <button
-            type="submit"
-            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-          >
+          <Button type="submit" className="cursor-pointer">
             Create Document
-          </button>
+          </Button>
         </div>
 
         {state?.message && <p className="mt-4 text-red-500">{state.message}</p>}

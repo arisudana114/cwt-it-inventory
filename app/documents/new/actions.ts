@@ -3,6 +3,28 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { DocumentCategory } from "@/app/generated/prisma";
+
+// Define the InSource type explicitly based on the return type of getInSourcesForProduct
+export type InSource = {
+  id: number;
+  documentId: number;
+  productId: number;
+  qty: number; // Using 'any' to handle Decimal type
+  unit: string;
+  packageQty?: number | null; // Using 'any' to handle Decimal type
+  packageUnit?: string | null;
+  balance: number;
+  packageBalance?: number | null;
+  document: {
+    documentNumber: string;
+    registrationNumber: string;
+    id: number;
+    date: Date;
+    direction: string;
+  };
+  inOutLinks: unknown[];
+};
 
 // Define validation schemas using Zod
 const productItemSchema = z.object({
@@ -14,18 +36,12 @@ const productItemSchema = z.object({
   packageUnit: z.string().optional(),
 });
 
-const inOutSourceSchema = z.object({
-  inDocumentProductItemId: z.coerce.number(),
-  qtyUsed: z.coerce.number().positive(),
-  packageQtyUsed: z.coerce.number().optional(),
-});
 
-const outProductItemSchema = productItemSchema.extend({
-  sources: z.array(inOutSourceSchema),
-});
+
+
 
 // This function will be called from the form to create the document
-export async function createDocument(prevState: any, formData: FormData | any) {
+export async function createDocument(prevState: unknown, formData: FormData | { message: string, errors: Partial<Record<string, string[]>> }) {
   // If formData is not a FormData instance, it's a validation error from client-side
   if (
     formData &&
@@ -42,7 +58,7 @@ export async function createDocument(prevState: any, formData: FormData | any) {
     } else if (direction === "OUT") {
       return await createOutDocument(formData);
     } else {
-      return { message: "Invalid document direction." };
+      return { message: "Invalid document direction.", errors: {} };
     }
   } catch (error) {
     // Don't log redirect "errors" as they're not actual errors
@@ -62,7 +78,7 @@ export async function createDocument(prevState: any, formData: FormData | any) {
       throw error; // Re-throw to allow Next.js to handle the redirect
     }
 
-    return { message: "An unexpected error occurred." };
+    return { message: "An unexpected error occurred.", errors: {} };
   }
 }
 
@@ -88,11 +104,11 @@ async function createInDocument(formData: FormData) {
     .filter((item): item is ProductItemEntry => item !== null)
     .reduce((acc, { index, key, value }) => {
       if (!acc[index]) {
-        acc[index] = {};
+        acc[index] = {} as { [key: string]: FormDataEntryValue | null };
       }
       acc[index][key] = value;
       return acc;
-    }, [] as any[]);
+    }, [] as { [key: string]: FormDataEntryValue | null }[]);
 
   await prisma.$transaction(async (tx) => {
     const document = await tx.document.create({
@@ -102,7 +118,7 @@ async function createInDocument(formData: FormData) {
           (formData.get("registrationNumber") as string) || null,
         date: new Date(formData.get("date") as string),
         direction: "IN",
-        ddocumentCategory: formData.get("ddocumentCategory") as any,
+        ddocumentCategory: formData.get("ddocumentCategory") as DocumentCategory,
         companyName: (formData.get("companyName") as string) || null,
         price: Number(formData.get("price") as string) || 0,
       },
@@ -148,6 +164,8 @@ async function createInDocument(formData: FormData) {
   return {
     success: true,
     redirectTo: "/documents",
+    message: "Document created successfully.",
+    errors: {},
   };
 }
 
@@ -172,7 +190,7 @@ async function createOutDocument(formData: FormData) {
             (formData.get("registrationNumber") as string) || null,
           date: new Date(formData.get("date") as string),
           direction: "OUT",
-          ddocumentCategory: formData.get("ddocumentCategory") as any,
+          ddocumentCategory: formData.get("ddocumentCategory") as DocumentCategory,
           companyName: (formData.get("companyName") as string) || null,
           price: Number(formData.get("price") as string) || 0,
         },
@@ -193,7 +211,7 @@ async function createOutDocument(formData: FormData) {
         }
 
         // ii. Create the DocumentProductItem for the OUT document
-        const documentProductItem = await tx.documentProductItem.create({
+        await tx.documentProductItem.create({
           data: {
             documentId: document.id,
             productId: product.id,
@@ -295,6 +313,8 @@ async function createOutDocument(formData: FormData) {
       return {
         success: true,
         redirectTo: "/documents",
+        message: "Document created successfully.",
+        errors: {},
       };
     } catch (error) {
       console.error("Error in createOutDocument transaction:", error);
@@ -340,7 +360,7 @@ function parseProductItemsFromFormData(formData: FormData) {
     const index = parseInt(indexStr);
     const entries = entriesByIndex[index];
 
-    const item: any = { index };
+    const item: { [key: string]: FormDataEntryValue | null | number } = { index };
 
     entries.forEach((entry) => {
       item[entry.key] = entry.value;
@@ -429,32 +449,40 @@ function parseSourcesFromFormData(formData: FormData) {
 export async function getInSourcesForProduct(productCode: string) {
   if (!productCode) return [];
 
-  const product = await prisma.product.findUnique({
-    where: { productCode },
+  const baseCode = productCode.slice(0, 7);
+
+  const matchingProducts = await prisma.product.findMany({
+    where: {
+      productCode: {
+        startsWith: baseCode,
+      },
+    },
   });
 
-  if (!product) return [];
+  if (!matchingProducts.length) return [];
+
+  const productIds = matchingProducts.map((p) => p.id);
 
   const inDocumentItems = await prisma.documentProductItem.findMany({
     where: {
-      productId: product.id,
+      productId: { in: productIds },
       document: {
         direction: "IN",
       },
     },
     include: {
       document: true,
-      inOutLinks: true, // These are the times this item has been used as a source
+      inOutLinks: true,
     },
   });
 
-  // Helper function to convert Decimal objects to numbers
-  const convertDecimalToNumber = (obj: any): any => {
-    if (obj === null || obj === undefined) {
-      return obj;
-    }
+  const convertDecimalToNumber = (obj: unknown): unknown => {
+    if (obj === null || obj === undefined) return obj;
 
-    // Check if it's a Decimal object (has toNumber method)
+    // ✅ Skip Date objects
+    if (obj instanceof Date) return obj;
+
+    // ✅ Convert Decimal.js objects (from Prisma)
     if (
       typeof obj === "object" &&
       obj !== null &&
@@ -464,27 +492,25 @@ export async function getInSourcesForProduct(productCode: string) {
       return obj.toNumber();
     }
 
-    // If it's an array, convert each item
+    // ✅ Recurse through arrays
     if (Array.isArray(obj)) {
       return obj.map((item) => convertDecimalToNumber(item));
     }
 
-    // If it's an object, convert each property
-    if (typeof obj === "object" && obj !== null) {
-      const result: any = {};
+    // ✅ Recurse through objects
+    if (typeof obj === "object") {
+      const result: { [key: string]: unknown } = {};
       for (const key in obj) {
-        result[key] = convertDecimalToNumber(obj[key]);
+        result[key] = convertDecimalToNumber((obj as { [key: string]: unknown })[key]);
       }
       return result;
     }
 
-    // Otherwise return as is
     return obj;
   };
 
   const sourcesWithBalance = inDocumentItems
     .map((item) => {
-      // Calculate regular quantity balance
       const totalUsed = item.inOutLinks.reduce(
         (sum, link) =>
           sum +
@@ -493,27 +519,34 @@ export async function getInSourcesForProduct(productCode: string) {
             : Number(link.qtyUsed)),
         0
       );
+
       const balance =
         (typeof item.qty.toNumber === "function"
           ? item.qty.toNumber()
           : Number(item.qty)) - totalUsed;
 
-      // For package quantity, since we don't have packageQtyUsed in the database yet,
-      // we'll just use the full packageQty as the balance for now
-      let packageBalance = undefined;
-      if (item.packageQty) {
-        packageBalance =
-          typeof item.packageQty.toNumber === "function"
-            ? item.packageQty.toNumber()
-            : Number(item.packageQty);
-      }
+      // Calculate total packageQtyUsed if exists
+      const totalPackageUsed = item.inOutLinks.reduce(
+        (sum, link) =>
+          sum +
+          (link.packageQtyUsed &&
+          typeof link.packageQtyUsed.toNumber === "function"
+            ? link.packageQtyUsed.toNumber()
+            : Number(link.packageQtyUsed ?? 0)),
+        0
+      );
 
-      // Convert all Decimal objects to numbers
+      // Remaining package qty balance
+      const packageBalance =
+        item.packageQty && typeof item.packageQty.toNumber === "function"
+          ? item.packageQty.toNumber() - totalPackageUsed
+          : Number(item.packageQty ?? 0) - totalPackageUsed;
+
       const itemWithNumberValues = convertDecimalToNumber({
         ...item,
         balance,
         packageBalance,
-      });
+      }) as InSource;
 
       return itemWithNumberValues;
     })

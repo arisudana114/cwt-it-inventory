@@ -64,7 +64,7 @@ model DocumentProductItem {
 
 model Document {
   id                 Int              @id @default(autoincrement())
-  documentNumber     String           @map("document_number")
+  documentNumber     String           @unique @map("document_number")
   registrationNumber String?          @map("registration_number")
   date               DateTime
   direction          Direction // Replace with enum if you have one
@@ -103,6 +103,7 @@ model Product {
   id          Int       @id @default(autoincrement())
   productName String    @map("product_name")
   productCode String    @unique @map("product_code")
+  baseCode    String    @default("A") @map("base_code")
   qty         Decimal   @default(0)
   unit        String
   packageQty  Decimal   @default(0) @map("package_qty")

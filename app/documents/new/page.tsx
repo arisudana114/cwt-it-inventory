@@ -551,7 +551,12 @@ export default function NewDocumentPage() {
         </div>
 
         <div className="mt-6">
-          <Button type="submit" className="cursor-pointer" disabled={pending}>
+          <Button
+            type="submit"
+            className="cursor-pointer"
+            disabled={pending}
+            style={{ backgroundColor: pending ? "gray" : "" }}
+          >
             {pending ? "Creating..." : "Create Document"}
           </Button>
         </div>

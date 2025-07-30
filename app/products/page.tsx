@@ -51,6 +51,7 @@ async function getProductStocks() {
 export default async function ProductStocksPage() {
   const stocks = await getProductStocks();
   // Helper to format numbers to 2 decimals, show 0 for near-zero
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fmt = (val: any) => {
     if (typeof val?.abs === "function" && val.abs().lessThan(1e-6)) return "0";
     if (typeof val?.toFixed === "function") return val.toFixed(2);

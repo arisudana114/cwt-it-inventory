@@ -56,6 +56,7 @@ export default async function Documents({
   }
 
   const buildQueryString = (page: number, tabOverride?: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const currentParams = new URLSearchParams(params as any);
     currentParams.set("page", String(page));
     currentParams.set("tab", tabOverride || tabValue);
@@ -267,7 +268,7 @@ export default async function Documents({
   );
 
   // OUT documents count and pagination is based on paginated results only (original logic)
-  let filteredOutDocumentsForCount = allFilteredOutDocuments;
+  const filteredOutDocumentsForCount = allFilteredOutDocuments;
   // If you want to filter OUT docs by remaining balance, add logic here
 
   const totalOutPages = Math.ceil(

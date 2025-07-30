@@ -201,7 +201,7 @@ export function DocumentFilters({
         >
           <option value="">All</option>
           <option value="zero">Only 0</option>
-          <option value="nonzero">Only > 0</option>
+          <option value="nonzero">Only &gt; 0</option>
         </select>
       </div>
 

@@ -63,7 +63,10 @@ export default function NewDocumentPage() {
       packageUnit: "",
     },
   ]);
-  const [availableSources, setAvailableSources] = useState<InSource[]>([]);
+  // Store available sources per product index
+  const [availableSources, setAvailableSources] = useState<
+    Record<number, InSource[]>
+  >({});
   const [sourceQuantities, setSourceQuantities] = useState<
     Record<string, Record<string, { qtyUsed: string; packageQtyUsed: string }>>
   >({});
@@ -92,7 +95,12 @@ export default function NewDocumentPage() {
     setProductItems(newItems);
 
     if (direction === "OUT" && field === "productCode") {
-      getInSourcesForProduct(value).then(setAvailableSources);
+      getInSourcesForProduct(value).then((sources) => {
+        setAvailableSources((prev) => ({
+          ...prev,
+          [index]: sources,
+        }));
+      });
     }
   };
 
@@ -455,8 +463,8 @@ export default function NewDocumentPage() {
               {direction === "OUT" && (
                 <div className="col-span-6 mt-2">
                   <h4 className="font-semibold">Select IN Sources:</h4>
-                  {availableSources.length > 0 ? (
-                    availableSources.map((source) => {
+                  {availableSources[index]?.length > 0 ? (
+                    availableSources[index].map((source) => {
                       return (
                         <div
                           key={source.id}

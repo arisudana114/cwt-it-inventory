@@ -21,6 +21,7 @@ import { DeleteDocumentButton } from "@/components/DeleteDocumentButton";
 import { redirect } from "next/navigation";
 import { DocumentCategory } from "../generated/prisma";
 import { DocumentFilters } from "@/components/DocumentFilters";
+import { Pagination } from "@/components/Pagination";
 
 export default async function Documents({
   searchParams,
@@ -28,50 +29,55 @@ export default async function Documents({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
+  const tabParam = Array.isArray(params?.tab) ? params.tab[0] : params?.tab;
+  const tabValue = tabParam === "out" ? "out" : "in";
 
   const documentNumber =
     typeof params?.documentNumber === "string"
       ? params.documentNumber
       : undefined;
+  const registrationNumber =
+    typeof params?.registrationNumber === "string"
+      ? params.registrationNumber
+      : undefined;
+  const productCode =
+    typeof params?.productCode === "string" ? params.productCode : undefined;
 
   const documentCategory = params?.documentCategory as string | undefined;
   const startDate = params?.startDate as string | undefined;
   const endDate = params?.endDate as string | undefined;
+  const remainingBalanceFilter = params?.remainingBalance as string | undefined;
 
-  const pageSize = 10; // Number of documents per page
+  const pageSize = 50; // Number of documents per page
   const currentPage = params?.page ? parseInt(String(params.page), 10) : 1;
 
   if (isNaN(currentPage) || currentPage < 1) {
     redirect("/documents?page=1");
   }
 
-  const buildQueryString = (page: number) => {
-    const params = new URLSearchParams();
-
-    if (documentNumber) params.set("documentNumber", documentNumber);
-    if (documentCategory) params.set("documentCategory", documentCategory);
-    if (startDate) params.set("startDate", startDate.toString().split("T")[0]);
-    if (endDate) params.set("endDate", endDate.toString().split("T")[0]);
-
-    params.set("page", String(page));
-    return `?${params.toString()}`;
+  const buildQueryString = (page: number, tabOverride?: string) => {
+    const currentParams = new URLSearchParams(params as any);
+    currentParams.set("page", String(page));
+    currentParams.set("tab", tabOverride || tabValue);
+    return `?${currentParams.toString()}`;
   };
-
-  const totalInDocuments = await prisma.document.count({
-    where: { direction: "IN" },
-  });
-
-  const totalOutDocuments = await prisma.document.count({
-    where: { direction: "OUT" },
-  });
-
-  const [inDocuments, outDocuments] = await Promise.all([
-    await prisma.document.findMany({
+  const [
+    allFilteredInDocumentsRaw,
+    outDocuments,
+    allFilteredOutDocuments,
+  ] = await Promise.all([
+    prisma.document.findMany({
       where: {
         direction: "IN",
         ...(documentNumber && {
           documentNumber: {
             contains: documentNumber,
+            mode: "insensitive",
+          },
+        }),
+        ...(registrationNumber && {
+          registrationNumber: {
+            contains: registrationNumber,
             mode: "insensitive",
           },
         }),
@@ -85,6 +91,18 @@ export default async function Documents({
               lte: new Date(endDate),
             },
           }),
+        ...(productCode && {
+          productItems: {
+            some: {
+              product: {
+                productCode: {
+                  contains: productCode,
+                  mode: "insensitive",
+                },
+              },
+            },
+          },
+        }),
       },
       include: {
         productItems: {
@@ -99,15 +117,19 @@ export default async function Documents({
         },
       },
       orderBy: { date: "desc" },
-      take: pageSize,
-      skip: (currentPage - 1) * pageSize,
     }),
-    await prisma.document.findMany({
+    prisma.document.findMany({
       where: {
         direction: "OUT",
         ...(documentNumber && {
           documentNumber: {
             contains: documentNumber,
+            mode: "insensitive",
+          },
+        }),
+        ...(registrationNumber && {
+          registrationNumber: {
+            contains: registrationNumber,
             mode: "insensitive",
           },
         }),
@@ -121,6 +143,18 @@ export default async function Documents({
               lte: new Date(endDate),
             },
           }),
+        ...(productCode && {
+          productItems: {
+            some: {
+              product: {
+                productCode: {
+                  contains: productCode,
+                  mode: "insensitive",
+                },
+              },
+            },
+          },
+        }),
       },
       include: {
         productItems: {
@@ -141,41 +175,138 @@ export default async function Documents({
       take: pageSize,
       skip: (currentPage - 1) * pageSize,
     }),
+    prisma.document.findMany({
+      where: {
+        direction: "OUT",
+        ...(documentNumber && {
+          documentNumber: {
+            contains: documentNumber,
+            mode: "insensitive",
+          },
+        }),
+        ...(registrationNumber && {
+          registrationNumber: {
+            contains: registrationNumber,
+            mode: "insensitive",
+          },
+        }),
+        ...(documentCategory && {
+          ddocumentCategory: { equals: documentCategory as DocumentCategory },
+        }),
+        ...(startDate &&
+          endDate && {
+            date: {
+              gte: new Date(startDate),
+              lte: new Date(endDate),
+            },
+          }),
+        ...(productCode && {
+          productItems: {
+            some: {
+              product: {
+                productCode: {
+                  contains: productCode,
+                  mode: "insensitive",
+                },
+              },
+            },
+          },
+        }),
+      },
+      include: {
+        productItems: {
+          include: {
+            product: true,
+            inOutLinks: true,
+          },
+        },
+        outDocuments: {
+          include: {
+            inDocument: true,
+            product: true,
+            productItem: true,
+          },
+        },
+      },
+      orderBy: { date: "desc" },
+    }),
   ]);
 
-  const totalInPages = Math.ceil(totalInDocuments / pageSize);
-  const totalOutPages = Math.ceil(totalOutDocuments / pageSize);
+  // Filter inDocuments by remaining balance if needed
+  let allFilteredInDocuments;
+  if (
+    remainingBalanceFilter === "zero" ||
+    remainingBalanceFilter === "nonzero"
+  ) {
+    const filterByBalance = (docs: typeof allFilteredInDocumentsRaw) =>
+      docs.filter((doc) => {
+        const hasNonZero = doc.productItems.some((item) => {
+          const totalUsed = item.inOutLinks.reduce(
+            (sum, link) => sum + Number(link.qtyUsed),
+            0
+          );
+          const originalQty = Number(item.qty);
+          const remaining = originalQty - totalUsed;
+          return remaining > 0;
+        });
+        if (remainingBalanceFilter === "zero") {
+          return doc.productItems.length > 0 && !hasNonZero;
+        } else {
+          return hasNonZero;
+        }
+      });
+    allFilteredInDocuments = filterByBalance(allFilteredInDocumentsRaw);
+  } else {
+    allFilteredInDocuments = allFilteredInDocumentsRaw;
+  }
+
+  const totalInPages = Math.ceil(allFilteredInDocuments.length / pageSize);
+  const paginatedInDocuments = allFilteredInDocuments.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // OUT documents count and pagination is based on paginated results only (original logic)
+  let filteredOutDocumentsForCount = allFilteredOutDocuments;
+  // If you want to filter OUT docs by remaining balance, add logic here
+
+  const totalOutPages = Math.ceil(
+    filteredOutDocumentsForCount.length / pageSize
+  );
 
   return (
-    <Tabs defaultValue="in" className="space-y-6">
+    <Tabs value={tabValue} className="space-y-6">
       <TabsList>
-        <TabsTrigger value="in">IN Documents</TabsTrigger>
-        <TabsTrigger value="out">OUT Documents</TabsTrigger>
+        <TabsTrigger value="in" asChild>
+          <a href={buildQueryString(1, "in")}>IN Documents</a>
+        </TabsTrigger>
+        <TabsTrigger value="out" asChild>
+          <a href={buildQueryString(1, "out")}>OUT Documents</a>
+        </TabsTrigger>
       </TabsList>
       <DocumentFilters
         defaultValues={{
-          documentNumber: Array.isArray(params?.documentNumber)
-            ? params.documentNumber[0]
-            : params?.documentNumber,
-          documentCategory: Array.isArray(params?.documentCategory)
-            ? params.documentCategory[0]
-            : params?.documentCategory,
-          startDate: Array.isArray(params?.startDate)
-            ? params.startDate[0]
-            : params?.startDate,
-          endDate: Array.isArray(params?.endDate)
-            ? params.endDate[0]
-            : params?.endDate,
+          documentNumber,
+          registrationNumber,
+          productCode,
+          documentCategory,
+          startDate,
+          endDate,
+          remainingBalance: remainingBalanceFilter,
         }}
       />
 
       <TabsContent value="in">
-        <h2 className="text-xl font-semibold mb-4">All IN Documents</h2>
-        {inDocuments.length === 0 ? (
+        <h2 className="text-xl font-semibold mb-4">
+          {`${allFilteredInDocuments.length} IN Document${
+            allFilteredInDocuments.length === 1 ? "" : "s"
+          } found`}
+        </h2>
+        {paginatedInDocuments.length === 0 ? (
           <p className="text-muted-foreground">No IN documents found.</p>
         ) : (
           <div className="space-y-8">
-            {inDocuments.map((document) => (
+            {paginatedInDocuments.map((document) => (
               <Card key={document.id}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
@@ -337,35 +468,15 @@ export default async function Documents({
             ))}
           </div>
         )}
-        <div className="flex justify-around mt-6 gap-2  w-1/4 mx-auto">
-          <a
-            href={buildQueryString(currentPage - 1)}
-            className={`px-3 py-1 rounded text-sm border ${
-              currentPage <= 1
-                ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                : "text-primary border-primary hover:bg-primary/10"
-            }`}
-          >
-            Previous
-          </a>
-
-          <span className="px-3 py-1 text-sm">Page {currentPage}</span>
-
-          <a
-            href={buildQueryString(currentPage + 1)}
-            className={`px-3 py-1 rounded text-sm border ${
-              currentPage >= totalInPages
-                ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                : "text-primary border-primary hover:bg-primary/10"
-            }`}
-          >
-            Next
-          </a>
-        </div>
+        <Pagination currentPage={currentPage} totalPages={totalInPages} tab="in" />
       </TabsContent>
 
       <TabsContent value="out">
-        <h2 className="text-xl font-semibold mb-4">All OUT Documents</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {`${filteredOutDocumentsForCount.length} OUT Document${
+            filteredOutDocumentsForCount.length === 1 ? "" : "s"
+          } found`}
+        </h2>
         {outDocuments.length === 0 ? (
           <p className="text-muted-foreground">No OUT documents found.</p>
         ) : (
@@ -451,31 +562,7 @@ export default async function Documents({
             ))}
           </div>
         )}
-        <div className="flex justify-around mt-6 gap-2  w-1/4 mx-auto mb-6">
-          <a
-            href={buildQueryString(currentPage - 1)}
-            className={`px-3 py-1 rounded text-sm border ${
-              currentPage <= 1
-                ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                : "text-primary border-primary hover:bg-primary/10"
-            }`}
-          >
-            Previous
-          </a>
-
-          <span className="px-3 py-1 text-sm">Page {currentPage}</span>
-
-          <a
-            href={buildQueryString(currentPage + 1)}
-            className={`px-3 py-1 rounded text-sm border ${
-              currentPage >= totalOutPages
-                ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                : "text-primary border-primary hover:bg-primary/10"
-            }`}
-          >
-            Next
-          </a>
-        </div>
+        <Pagination currentPage={currentPage} totalPages={totalOutPages} tab="out" />
       </TabsContent>
     </Tabs>
   );

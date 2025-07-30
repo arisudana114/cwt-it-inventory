@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export function DocumentFilters({
@@ -8,39 +8,55 @@ export function DocumentFilters({
 }: {
   defaultValues: {
     documentNumber?: string;
+    registrationNumber?: string;
+    productCode?: string;
     documentCategory?: string;
     startDate?: string;
     endDate?: string;
+    remainingBalance?: string;
   };
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [documentNumber, setDocumentNumber] = useState(
     defaultValues.documentNumber || ""
+  );
+  const [registrationNumber, setRegistrationNumber] = useState(
+    defaultValues.registrationNumber || ""
+  );
+  const [productCode, setProductCode] = useState(
+    defaultValues.productCode || ""
   );
   const [documentCategory, setDocumentCategory] = useState(
     defaultValues.documentCategory || ""
   );
   const [startDate, setStartDate] = useState(defaultValues.startDate || "");
   const [endDate, setEndDate] = useState(defaultValues.endDate || "");
+  const [remainingBalance, setRemainingBalance] = useState(
+    defaultValues.remainingBalance || ""
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(searchParams.toString());
 
-    if (documentNumber.trim()) {
-      params.set("documentNumber", documentNumber.trim());
-    }
-    if (documentCategory) {
-      params.set("documentCategory", documentCategory);
-    }
-    if (startDate) {
-      params.set("startDate", startDate);
-    }
-    if (endDate) {
-      params.set("endDate", endDate);
-    }
+    const updateParam = (key: string, value: string) => {
+      if (value.trim()) {
+        params.set(key, value.trim());
+      } else {
+        params.delete(key);
+      }
+    };
+
+    updateParam("documentNumber", documentNumber);
+    updateParam("registrationNumber", registrationNumber);
+    updateParam("productCode", productCode);
+    updateParam("documentCategory", documentCategory);
+    updateParam("startDate", startDate);
+    updateParam("endDate", endDate);
+    updateParam("remainingBalance", remainingBalance);
 
     // Always reset pagination to first page
     params.set("page", "1");
@@ -49,14 +65,22 @@ export function DocumentFilters({
   };
 
   const handleReset = () => {
-    // Clear the search params
-    router.push("/documents");
+    const tab = searchParams.get("tab");
+    const newParams = new URLSearchParams();
+    if (tab) {
+      newParams.set("tab", tab);
+    }
+    newParams.set("page", "1");
+    router.push(`/documents?${newParams.toString()}`);
 
     // Clear UI state too
     setDocumentNumber("");
+    setRegistrationNumber("");
+    setProductCode("");
     setDocumentCategory("");
     setStartDate("");
     setEndDate("");
+    setRemainingBalance("");
   };
 
   return (
@@ -76,6 +100,38 @@ export function DocumentFilters({
           value={documentNumber}
           onChange={(e) => setDocumentNumber(e.target.value)}
           placeholder="Filter by document number"
+          className="border border-input px-3 py-1 rounded text-sm"
+        />
+      </div>
+
+      {/* Registration Number */}
+      <div className="flex flex-col">
+        <label htmlFor="registrationNumber" className="text-sm font-medium">
+          Registration Number
+        </label>
+        <input
+          type="text"
+          id="registrationNumber"
+          name="registrationNumber"
+          value={registrationNumber}
+          onChange={(e) => setRegistrationNumber(e.target.value)}
+          placeholder="Filter by registration number"
+          className="border border-input px-3 py-1 rounded text-sm"
+        />
+      </div>
+
+      {/* Product Code */}
+      <div className="flex flex-col">
+        <label htmlFor="productCode" className="text-sm font-medium">
+          Product Code
+        </label>
+        <input
+          type="text"
+          id="productCode"
+          name="productCode"
+          value={productCode}
+          onChange={(e) => setProductCode(e.target.value)}
+          placeholder="Filter by product code"
           className="border border-input px-3 py-1 rounded text-sm"
         />
       </div>
@@ -129,6 +185,24 @@ export function DocumentFilters({
           onChange={(e) => setEndDate(e.target.value)}
           className="border border-input px-3 py-1 rounded text-sm"
         />
+      </div>
+
+      {/* Remaining Balance Filter */}
+      <div className="flex flex-col">
+        <label htmlFor="remainingBalance" className="text-sm font-medium">
+          Remaining Balance
+        </label>
+        <select
+          id="remainingBalance"
+          name="remainingBalance"
+          value={remainingBalance}
+          onChange={(e) => setRemainingBalance(e.target.value)}
+          className="border border-input px-3 py-1 rounded text-sm dark:bg-black"
+        >
+          <option value="">All</option>
+          <option value="zero">Only 0</option>
+          <option value="nonzero">Only > 0</option>
+        </select>
       </div>
 
       {/* Buttons */}

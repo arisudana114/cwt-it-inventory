@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { DocumentCategory } from "@prisma/client";
+import { DocumentCategory } from "@/app/generated/prisma";
 
 // Define the structure of the document data we expect to fetch.
 type DocumentData = {

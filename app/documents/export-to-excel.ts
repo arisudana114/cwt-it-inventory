@@ -17,6 +17,8 @@ type DocumentData = {
   packageUnit: string | null;
   remainingBalance: number;
   remainingPackage: number | null;
+  sourceDocument?: string;
+  linkedDocuments?: string;
 };
 
 /**
@@ -84,7 +86,15 @@ export async function getDocumentsForExcel(filters: {
         productItems: {
           include: {
             product: true,
-            inOutLinks: true,
+            inOutLinks: {
+              include: {
+                outDocument: {
+                  select: {
+                    documentNumber: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -127,6 +137,10 @@ export async function getDocumentsForExcel(filters: {
             ? Number(item.packageQty) - totalPackageUsed
             : null;
 
+        const linkedDocuments = item.inOutLinks
+          .map((link) => link.outDocument.documentNumber)
+          .join(", ");
+
         return {
           documentNumber: doc.documentNumber,
           registrationNumber: doc.registrationNumber,
@@ -140,6 +154,7 @@ export async function getDocumentsForExcel(filters: {
           packageUnit: item.packageUnit,
           remainingBalance,
           remainingPackage,
+          linkedDocuments,
         };
       })
     );
@@ -209,6 +224,7 @@ export async function getDocumentsForExcel(filters: {
         packageUnit: link.productItem.packageUnit || null,
         remainingBalance: 0, // Not applicable for OUT documents
         remainingPackage: 0, // Not applicable for OUT documents
+        sourceDocument: link.inDocument.documentNumber,
       }))
     );
 

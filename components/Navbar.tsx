@@ -12,6 +12,7 @@ export function Navbar() {
     { href: "/", label: "Home" },
     { href: "/documents", label: "Documents" },
     { href: "/products", label: "Products" },
+    { href: "/history", label: "History" },
     { href: "/documents/new", label: "New Document" },
   ];
 
@@ -22,8 +23,6 @@ export function Navbar() {
           <Link
             key={item.href}
             href={item.href}
-            target="_blank"
-            rel="noopener noreferrer"
             className={cn(
               "hover:text-yellow-300 transition-colors",
               pathname === item.href

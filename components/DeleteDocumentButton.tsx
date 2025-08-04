@@ -21,7 +21,7 @@ export function DeleteDocumentButton({ documentId }: { documentId: number }) {
   return (
     <button
       onClick={handleDelete}
-      className="text-sm bg-red-800 px-2 py-1 rounded-md  ml-auto cursor-pointer"
+      className="text-sm bg-red-800 px-2 py-1 rounded-md  ml-auto cursor-pointer text-white"
       disabled={isPending}
     >
       {isPending ? "Deleting..." : "Delete"}

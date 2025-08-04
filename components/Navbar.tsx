@@ -16,12 +16,14 @@ export function Navbar() {
   ];
 
   return (
-    <nav className="w-full border-b border-border bg-background px-6 py-4 mb-4">
+    <nav className="sticky top-0 z-50 w-full border-b border-border bg-background px-6 py-4 mb-4">
       <div className="flex gap-6 text-sm font-medium items-center">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
+            target="_blank"
+            rel="noopener noreferrer"
             className={cn(
               "hover:text-yellow-300 transition-colors",
               pathname === item.href

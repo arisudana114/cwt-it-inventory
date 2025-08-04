@@ -22,6 +22,7 @@ import { redirect } from "next/navigation";
 import { DocumentCategory } from "../generated/prisma";
 import { DocumentFilters } from "@/components/DocumentFilters";
 import { Pagination } from "@/components/Pagination";
+import { DownloadExcelButton } from "@/components/DownloadExcelButton";
 
 export default async function Documents({
   searchParams,
@@ -64,7 +65,7 @@ export default async function Documents({
   };
   const [
     allFilteredInDocumentsRaw,
-    outDocuments,
+    paginatedOutDocuments,
     allFilteredOutDocuments,
   ] = await Promise.all([
     prisma.document.findMany({
@@ -267,13 +268,13 @@ export default async function Documents({
     currentPage * pageSize
   );
 
-  // OUT documents count and pagination is based on paginated results only (original logic)
+  // OUT documents count and pagination
   const filteredOutDocumentsForCount = allFilteredOutDocuments;
-  // If you want to filter OUT docs by remaining balance, add logic here
-
   const totalOutPages = Math.ceil(
     filteredOutDocumentsForCount.length / pageSize
   );
+
+  console.log("Rendering document price:", paginatedInDocuments[7].price);
 
   return (
     <Tabs value={tabValue} className="space-y-6">
@@ -285,17 +286,31 @@ export default async function Documents({
           <a href={buildQueryString(1, "out")}>OUT Documents</a>
         </TabsTrigger>
       </TabsList>
-      <DocumentFilters
-        defaultValues={{
-          documentNumber,
-          registrationNumber,
-          productCode,
-          documentCategory,
-          startDate,
-          endDate,
-          remainingBalance: remainingBalanceFilter,
-        }}
-      />
+      <div className="flex justify-between items-center mb-4">
+        <DocumentFilters
+          defaultValues={{
+            documentNumber,
+            registrationNumber,
+            productCode,
+            documentCategory,
+            startDate,
+            endDate,
+            remainingBalance: remainingBalanceFilter,
+          }}
+        />
+        <DownloadExcelButton
+          filters={{
+            documentNumber,
+            registrationNumber,
+            productCode,
+            documentCategory,
+            startDate,
+            endDate,
+            remainingBalance: remainingBalanceFilter,
+            tab: tabValue,
+          }}
+        />
+      </div>
 
       <TabsContent value="in">
         <h2 className="text-xl font-semibold mb-4">
@@ -333,6 +348,25 @@ export default async function Documents({
 
                         {document.companyName && (
                           <span>Company: {document.companyName}</span>
+                        )}
+                        {document.price && (
+                          <span>
+                            Price:{" "}
+                            {new Intl.NumberFormat(
+                              document.price.toNumber() > 10000000
+                                ? "id-ID"
+                                : "en-US",
+                              {
+                                style: "currency",
+                                currency:
+                                  document.price.toNumber() > 10000000
+                                    ? "IDR"
+                                    : "USD",
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }
+                            ).format(document.price.toNumber())}
+                          </span>
                         )}
                       </CardDescription>
                     </div>
@@ -469,7 +503,11 @@ export default async function Documents({
             ))}
           </div>
         )}
-        <Pagination currentPage={currentPage} totalPages={totalInPages} tab="in" />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalInPages}
+          tab="in"
+        />
       </TabsContent>
 
       <TabsContent value="out">
@@ -478,11 +516,11 @@ export default async function Documents({
             filteredOutDocumentsForCount.length === 1 ? "" : "s"
           } found`}
         </h2>
-        {outDocuments.length === 0 ? (
+        {paginatedOutDocuments.length === 0 ? (
           <p className="text-muted-foreground">No OUT documents found.</p>
         ) : (
           <div className="space-y-8">
-            {outDocuments.map((document) => (
+            {paginatedOutDocuments.map((document) => (
               <Card key={document.id}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
@@ -508,6 +546,25 @@ export default async function Documents({
 
                         {document.companyName && (
                           <span>Company: {document.companyName}</span>
+                        )}
+                        {document.price && (
+                          <span>
+                            Price:{" "}
+                            {new Intl.NumberFormat(
+                              document.price.toNumber() > 10000000
+                                ? "id-ID"
+                                : "en-US",
+                              {
+                                style: "currency",
+                                currency:
+                                  document.price.toNumber() > 10000000
+                                    ? "IDR"
+                                    : "USD",
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }
+                            ).format(document.price.toNumber())}
+                          </span>
                         )}
                       </CardDescription>
                     </div>
@@ -563,7 +620,11 @@ export default async function Documents({
             ))}
           </div>
         )}
-        <Pagination currentPage={currentPage} totalPages={totalOutPages} tab="out" />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalOutPages}
+          tab="out"
+        />
       </TabsContent>
     </Tabs>
   );

@@ -209,14 +209,14 @@ export function DocumentFilters({
       <div className="flex gap-2">
         <button
           type="submit"
-          className="px-3 py-2 rounded text-sm bg-primary text-white hover:bg-primary/90"
+          className="px-3 py-2 rounded text-sm bg-primary text-white hover:bg-primary/90  cursor-pointer"
         >
           Filter
         </button>
         <button
           type="button"
           onClick={handleReset}
-          className="px-3 py-2 rounded text-sm border border-input text-muted-foreground hover:bg-muted"
+          className="px-3 py-2 rounded text-sm border border-input text-muted-foreground hover:bg-muted cursor-pointer"
         >
           Reset
         </button>

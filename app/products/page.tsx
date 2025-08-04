@@ -53,10 +53,23 @@ export default async function ProductStocksPage() {
   // Helper to format numbers to 2 decimals, show 0 for near-zero
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fmt = (val: any) => {
-    if (typeof val?.abs === "function" && val.abs().lessThan(1e-6)) return "0";
-    if (typeof val?.toFixed === "function") return val.toFixed(2);
-    if (typeof val === "number") return val.toFixed(2);
-    return val?.toString?.() ?? "";
+    if (typeof val?.abs === "function" && val.abs().lessThan(1e-6))
+      return "0.00";
+
+    let numToFormat: number;
+
+    if (typeof val?.toNumber === "function") {
+      numToFormat = val.toNumber();
+    } else if (typeof val === "number") {
+      numToFormat = val;
+    } else {
+      return val?.toString?.() ?? "";
+    }
+
+    return numToFormat.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   };
 
   return (

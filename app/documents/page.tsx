@@ -39,9 +39,8 @@ export default async function Documents({ searchParams }: { searchParams: Search
   };
 
   const plainSearchParams = Object.fromEntries(
-    Object.entries(params).filter(
-      ([_, value]) => typeof value === "string" || Array.isArray(value)
-    )
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    Object.entries(searchParams).filter(([_key, value]) => typeof value === 'string' || Array.isArray(value))
   );
 
   const suspenseKey = JSON.stringify(plainSearchParams);

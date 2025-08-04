@@ -209,7 +209,7 @@ export function DocumentFilters({
       <div className="flex gap-2">
         <button
           type="submit"
-          className="px-3 py-2 rounded text-sm bg-primary text-white hover:bg-primary/90  cursor-pointer"
+          className="px-3 py-2 rounded text-sm bg-primary text-black hover:bg-primary/90  cursor-pointer"
         >
           Filter
         </button>

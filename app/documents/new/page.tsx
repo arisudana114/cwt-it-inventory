@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, startTransition } from "react";
-import { useFormStatus } from "react-dom";
 import { createDocument, getInSourcesForProduct, InSource } from "./actions";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -14,12 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { PlusCircleIcon, Trash2 } from "lucide-react";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 type FormState = {
   message: string;
-  errors: Partial<Record<string, string[]>>;
+  errors: Partial<Record<string, string[]>>; 
   success?: boolean;
   redirectTo?: string;
 };
@@ -33,8 +32,6 @@ export default function NewDocumentPage() {
       errors: {},
     } as FormState
   );
-
-  const { pending } = useFormStatus();
 
   // Handle redirect if server action returns success with redirectTo
   useEffect(() => {
@@ -70,6 +67,7 @@ export default function NewDocumentPage() {
   const [sourceQuantities, setSourceQuantities] = useState<
     Record<string, Record<string, { qtyUsed: string; packageQtyUsed: string }>>
   >({});
+  const [isLoadingSources, setIsLoadingSources] = useState<boolean>(false);
 
   const handleAddProduct = () => {
     setProductItems([
@@ -95,12 +93,17 @@ export default function NewDocumentPage() {
     setProductItems(newItems);
 
     if (direction === "OUT" && field === "productCode") {
-      getInSourcesForProduct(value).then((sources) => {
-        setAvailableSources((prev) => ({
-          ...prev,
-          [index]: sources,
-        }));
-      });
+      setIsLoadingSources(true);
+      getInSourcesForProduct(value)
+        .then((sources) => {
+          setAvailableSources((prev) => ({
+            ...prev,
+            [index]: sources,
+          }));
+        })
+        .finally(() => {
+          setIsLoadingSources(false);
+        });
     }
   };
 
@@ -226,19 +229,29 @@ export default function NewDocumentPage() {
     const form = e.currentTarget;
     const formData = new FormData(form);
 
+    // Create a new FormData object with trimmed values
+    const trimmedFormData = new FormData();
+    for (const [key, value] of formData.entries()) {
+      if (typeof value === 'string') {
+        trimmedFormData.append(key, value.trimEnd());
+      } else {
+        trimmedFormData.append(key, value);
+      }
+    }
+
     // Add source quantities to form data for OUT documents
     if (direction === "OUT") {
       Object.entries(sourceQuantities).forEach(([productIndex, sources]) => {
         Object.entries(sources).forEach(
           ([sourceId, { qtyUsed, packageQtyUsed }]) => {
-            formData.append(
+            trimmedFormData.append(
               `productItems.${productIndex}.sources.${sourceId}.qtyUsed`,
               qtyUsed
             );
 
             // Only add packageQtyUsed if it has a value
             if (packageQtyUsed) {
-              formData.append(
+              trimmedFormData.append(
                 `productItems.${productIndex}.sources.${sourceId}.packageQtyUsed`,
                 packageQtyUsed
               );
@@ -249,7 +262,7 @@ export default function NewDocumentPage() {
     }
 
     startTransition(() => {
-      formAction(formData);
+      formAction(trimmedFormData);
     });
   };
 
@@ -260,12 +273,12 @@ export default function NewDocumentPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2 grid gap-2">
             <Label htmlFor="documentNumber">Document Number</Label>
-            <Input id="documentNumber" name="documentNumber" required />
+            <Input id="documentNumber" name="documentNumber" required onChange={(e) => e.target.value = e.target.value.trimEnd()} />
           </div>
 
           <div className="md:col-span-2 grid gap-2">
             <Label htmlFor="registrationNumber">Registration Number</Label>
-            <Input id="registrationNumber" name="registrationNumber" />
+            <Input id="registrationNumber" name="registrationNumber" onChange={(e) => e.target.value = e.target.value.trimEnd()} />
           </div>
 
           <div className="md:col-span-2 grid gap-2">
@@ -318,7 +331,7 @@ export default function NewDocumentPage() {
 
           <div className="md:col-span-2 grid gap-2">
             <Label htmlFor="companyName">Company Name</Label>
-            <Input id="companyName" name="companyName" />
+            <Input id="companyName" name="companyName" onChange={(e) => e.target.value = e.target.value.trimEnd()} />
           </div>
 
           <div className="md:col-span-2 grid gap-2">
@@ -346,7 +359,7 @@ export default function NewDocumentPage() {
                     id={`productItems.${index}.productName`}
                     value={item.productName || ""}
                     onChange={(e) =>
-                      handleProductChange(index, "productName", e.target.value)
+                      handleProductChange(index, "productName", e.target.value.trimEnd())
                     }
                     required
                   />
@@ -364,7 +377,7 @@ export default function NewDocumentPage() {
                     id={`productItems.${index}.productCode`}
                     value={item.productCode || ""}
                     onChange={(e) =>
-                      handleProductChange(index, "productCode", e.target.value)
+                      handleProductChange(index, "productCode", e.target.value.trimEnd())
                     }
                     required
                   />
@@ -403,7 +416,7 @@ export default function NewDocumentPage() {
                     id={`productItems.${index}.unit`}
                     value={item.unit || ""}
                     onChange={(e) =>
-                      handleProductChange(index, "unit", e.target.value)
+                      handleProductChange(index, "unit", e.target.value.trimEnd())
                     }
                     required
                   />
@@ -438,7 +451,7 @@ export default function NewDocumentPage() {
                     id={`productItems.${index}.packageUnit`}
                     value={item.packageUnit || ""}
                     onChange={(e) =>
-                      handleProductChange(index, "packageUnit", e.target.value)
+                      handleProductChange(index, "packageUnit", e.target.value.trimEnd())
                     }
                   />
                 </div>
@@ -463,7 +476,13 @@ export default function NewDocumentPage() {
               {direction === "OUT" && (
                 <div className="col-span-6 mt-2">
                   <h4 className="font-semibold">Select IN Sources:</h4>
-                  {availableSources[index]?.length > 0 ? (
+                  {isLoadingSources ? (
+                    <div className="animate-pulse space-y-2">
+                      <div className="h-8 bg-muted rounded w-full"></div>
+                      <div className="h-8 bg-muted rounded w-full"></div>
+                      <div className="h-8 bg-muted rounded w-full"></div>
+                    </div>
+                  ) : availableSources[index]?.length > 0 ? (
                     availableSources[index].map((source) => {
                       return (
                         <div
@@ -559,14 +578,7 @@ export default function NewDocumentPage() {
         </div>
 
         <div className="mt-6">
-          <Button
-            type="submit"
-            className="cursor-pointer"
-            disabled={pending}
-            style={{ backgroundColor: pending ? "gray" : "" }}
-          >
-            {pending ? "Creating..." : "Create Document"}
-          </Button>
+          <SubmitButton>Create Document</SubmitButton>
         </div>
 
         {state?.message && <p className="mt-4 text-red-500">{state.message}</p>}

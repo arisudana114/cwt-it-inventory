@@ -1,9 +1,21 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-export function ProductSelector({ products, selectedProduct }: { products: { productCode: string, productName: string }[], selectedProduct?: string }) {
+export function ProductSelector({
+  products,
+  selectedProduct,
+}: {
+  products: { productCode: string; productName: string }[];
+  selectedProduct?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -15,7 +27,7 @@ export function ProductSelector({ products, selectedProduct }: { products: { pro
 
   return (
     <Select onValueChange={handleSelect} value={selectedProduct}>
-      <SelectTrigger className="w-[280px]">
+      <SelectTrigger className="w-[450px]">
         <SelectValue placeholder="Select a product" />
       </SelectTrigger>
       <SelectContent>
